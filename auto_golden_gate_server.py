@@ -21,7 +21,7 @@ import zipfile
 import sys
 import auto_golden_gate_functions
  
-TCP_PORT = 5686
+TCP_PORT = 5688
 
 class Userform(tornado.web.RequestHandler):
     def get(self):
@@ -66,23 +66,30 @@ class Upload(tornado.web.RequestHandler):
         self.write(str(plasmidNames)+"<br>")
 
         os.chdir(tmp_dir_name)
-        files = glob.glob("../../pydna_development/*.gb*")
-        self.write(str(len(files))+" files found.<br>")
+        files = glob.glob("../../MoClo_plasmids/*.gb*")
+        self.write(str(len(files))+" plasmid files found preloaded on server.<br>")
  
         plasmidSeqs,featuresToApply =  auto_golden_gate_functions.extractPlasmidSeqsAndFeatures(plasmidNames,files)
-        self.write("Loaded "+str(len(plasmidSeqs))+" plasmid files with "+str(len(featuresToApply))+" annotations.<br>")
+        self.write("Based on provided input, loaded "+str(len(plasmidSeqs))+" plasmid files with "+str(len(featuresToApply))+" annotations.<br>")
         if len(plasmidNames) != len(plasmidSeqs):
             self.write("Error: Number of plasmids parsed is less than requested.<br>")
             self.write("This means the program couldn't find some file(s).<br>")
             self.finish("exiting...<br>")
             return
         
-        self.write("Performing in-silico "+digest_enzyme+" digestion...<br>")
+        self.write("Performing in-silico "+digest_enzyme+" digestion of plasmids...<br>")
         fragments =  auto_golden_gate_functions.digestBsaI(plasmidSeqs,digest_enzyme) ##Output in a dictonary with some additional information
         initial_frags = [item for sublist in fragments.values() for item in sublist] ##Get rid of the dictionary structure
         self.write("Digestion resulted in "+str(len(initial_frags))+ " fragments.<br>")
-        initial_frags_filtered =  auto_golden_gate_functions.subtract_frags_by_seq(initial_frags) ##Subtract away GFP and chloramphenicol resistance
-
+        initial_frags_filtered = initial_frags
+        if True:
+            seq_to_filter = {"GFP":"ataccctggtaaaccgcattgagctgaaag","CamR":"agaagttgtccatattggccacgtttaaatcaaaa"}
+            seqList = seq_to_filter.values()
+            initial_frags_filtered = auto_golden_gate_functions.subtract_frags_by_seq(initial_frags_filtered,seqList) ##Subtract away GFP and chloramphenicol resistance
+            filteredBy = ",".join(seq_to_filter.keys())
+            self.write(str(len(initial_frags_filtered))+" fragments remain after filtering of fragments that have the following subsequences:"+filteredBy+"<br>")
+        else:
+            self.write("Not performing fragment filtration.<br>")    
         pastFrags = []
         keepLooping = True
         i=0
@@ -95,7 +102,7 @@ class Upload(tornado.web.RequestHandler):
             for f in combinedFrags:
                 if f.circular:
                     keepLooping = False
-                    self.write("Found circular plasmid. Exiting ligation loop.<br>")
+                    self.write("Found circular plasmid. Exiting ligation loop...<br>")
                     break
             pastFrags = combinedFrags
             if i > 19:
@@ -108,22 +115,26 @@ class Upload(tornado.web.RequestHandler):
         self.write("Number of ligation products after fitering to circular only:"+str(len(circularPlasmids))+"<br>")
         dereplicatedPlasmids = auto_golden_gate_functions.dereplicate_circular_sequences(circularPlasmids)
         self.write("Number of ligation products after dereplicating:"+str(len(dereplicatedPlasmids))+"<br>")
-        assert len(dereplicatedPlasmids) == 1
-
-        self.write("Reapplying feature annotations to sequence and exporting...<br>")
+        if len(dereplicatedPlasmids) > 1:
+            self.write("Warning. More than 1 dereplicated circular plasmid found.<br>")
+        
         from Bio.Alphabet.IUPAC     import IUPACAmbiguousDNA
         import datetime
-        theSeq = Bio.Seq.Seq(str(dereplicatedPlasmids[0]),IUPACAmbiguousDNA()).upper()
-        theRecord = Bio.SeqRecord.SeqRecord(theSeq,id="testID", name="testName",description="testDescription")
-        theRecord.annotations["topology"] = "circular"
-        theRecord.annotations["molecule_type"] = "ds-DNA"
-        today = datetime.datetime.today()
-        today_string = today.strftime("%d-%b-%Y").upper() ##%d-%b-%Y -> uppercase
-        theRecord.annotations["date"] = today_string
+        i=1
+        for d in dereplicatedPlasmids:
+            self.write("Reapplying feature annotations to sequence and exporting...<br>")
+            theSeq = Bio.Seq.Seq(str(d),IUPACAmbiguousDNA()).upper()
+            theRecord = Bio.SeqRecord.SeqRecord(theSeq,id="testID", name="testName",description="testDescription")
+            theRecord.annotations["topology"] = "circular"
+            theRecord.annotations["molecule_type"] = "ds-DNA"
+            today = datetime.datetime.today()
+            today_string = today.strftime("%d-%b-%Y").upper() ##%d-%b-%Y -> uppercase
+            theRecord.annotations["date"] = today_string
 
-        theRecord = auto_golden_gate_functions.reapply_features_to_record(theRecord,featuresToApply)
+            theRecord = auto_golden_gate_functions.reapply_features_to_record(theRecord,featuresToApply)
 
-        Bio.SeqIO.write(theRecord, record_name+".gbk", "gb")
+            Bio.SeqIO.write(theRecord, str(i)+"_"+record_name+".gbk", "gb")
+            i+=1
 
         os.chdir(current_dir)
         

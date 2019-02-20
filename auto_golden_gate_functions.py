@@ -202,14 +202,15 @@ def ligate_fragments(theFrags):
 # In[7]:
 
 
-def subtract_frags_by_seq(frags):
+def subtract_frags_by_seq(frags,seqList):
     passed_frags = []
-    GFP_30bp = "ataccctggtaaaccgcattgagctgaaag".upper()
-    CamR_35bp = "agaagttgtccatattggccacgtttaaatcaaaa".upper()
-    seq_to_screen = [GFP_30bp,CamR_35bp]
+    internalSeq = []
+    ##Should be iterating over list, not chars of a string
+    for s in seqList:
+        internalSeq.append(s.upper())
     for f in frags:
         all_pass = True
-        for s in seq_to_screen:
+        for s in internalSeq:
             if s in str(f).upper() or s in str(f.reverse_complement()).upper():
                 all_pass = False
         if all_pass == True:
