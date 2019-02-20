@@ -1,0 +1,40 @@
+<html>
+<head> 
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/> 
+<title>Yeast MoClo-YTK Golden Gate in-silico plasmid automator</title>
+</head>
+<body>
+<p><h1>Yeast MoClo-YTK Golden Gate in-silico plasmid automator</h1></p>
+<form enctype="multipart/form-data" action="/upload" method="post">
+Upload Genbank file of your Type 3 Part plasmid : <input type="file" name="filearg" />
+<br />
+and
+<br />
+From your lab notebook / excel, copy paste the other 5 parts for the 6 part cassette assembly.
+<br />
+<TEXTAREA name="text_box" 
+            rows="20" cols="80"
+            tabindex="40">
+</TEXTAREA>
+<br />
+Sequence ID:<input type="text" name="record_id" value="no_id">
+<br>
+Sequence name:<input type="text" name="record_name" value="no_name">
+<br>
+Sequence description:<input type="text" name="record_description" value="no_description">
+<br />
+(Eventually the program will automatically derive the plasmid name from the parts, but so far it doesn't)
+<br />
+<br>
+Digestion enzyme:
+<br/>
+  <input type="radio" name="digest_enzyme" value="BsaI" checked> BsaI<br>
+  <input type="radio" name="digest_enzyme" value="BsmBI"> BsmBI<br>
+  <br>
+  <input type="submit" value="Submit" />
+</form>
+(Submission takes a little while to do. Since it is similating an all-to-all ligation reaction)
+<br>
+<a title="Server source code" href="https://github.com/photocyte/auto_clone">Server source code</a>
+</body>
+</html>
