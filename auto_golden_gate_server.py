@@ -31,10 +31,34 @@ class Upload(tornado.web.RequestHandler):
     def post(self):
     ##Handle clicking of the "submit" button
         os.chdir(os.path.dirname(os.path.realpath(sys.argv[0]))) ##Change to the directory of the script.
+
+        ##Randomly assign name for temporary directory
+        tmp_str = base64.b32encode(os.urandom(20)).decode('utf-8')
+        tmp_dir_name = "./output_folders/"+tmp_str
+        if not os.path.isdir("./output_folders/"):
+            os.mkdir("./output_folders/")
+        os.mkdir(tmp_dir_name)
    
         self.write("<html><font face=\"courier\">")
         self.write("<div style =\"width: 5000px; overflow:scroll\">") ##Some tricks to have scrolling text.
-        self.write("parsing...")
+
+                    ##Is there a file?
+        try:
+            fileinfo = self.request.files['filearg'][0]
+            fname = fileinfo['filename']
+            extn = os.path.splitext(fname)[1]
+            file_data = fileinfo['body'].strip()
+            filePath = tmp_dir_name+"/"+fname
+            self.write("Loading uploaded file onto server:"+fname+"<br>")
+            handle = open(filePath,"wb")
+            handle.write(file_data)
+            handle.close()
+        except Exception as e:
+            self.write("File loading failed:"+str(e)+"<br>")
+            self.write("No file uploaded?<br>")
+            self.finish()
+            return
+
         plasmid_name = self.get_argument('plasmid_name', '')
         text_box = self.get_argument('text_box','').strip().replace('\n','').replace(' ','')
         record_id = self.get_argument('record_id','').strip()
@@ -42,12 +66,6 @@ class Upload(tornado.web.RequestHandler):
         record_description = self.get_argument('record_description','').strip()
         digest_enzyme = self.get_argument('digest_enzyme','').strip()
         
-        ##Randomly assign name for temporary directory
-        tmp_str = base64.b32encode(os.urandom(20)).decode('utf-8')
-        tmp_dir_name = "./output_folders/"+tmp_str
-        if not os.path.isdir("./output_folders/"):
-            os.mkdir("./output_folders/")
-        os.mkdir(tmp_dir_name)
         current_dir = os.getcwd()
     
         ##Parse text box
@@ -58,19 +76,27 @@ class Upload(tornado.web.RequestHandler):
             text_box = text_box.strip()
             text_box = text_box.replace("\r","\n")
             text_split = text_box.split("\n")
+            if len(text_split) < 2:
+                ##Maybe the text is split with commas, try that instead.
+                text_split = text_box.split(",")
+                if len(text_split) < 2:
+                    self.write("Malformed text input.<br>")
+                    self.finish("exiting...")
+                    return 
             text_split[:] = [item for item in text_split if item != ''] ##remove empty strings
     
-        self.write("Loaded "+str(len(text_split))+" record(s) successfully<br>")        
         plasmidNames = auto_golden_gate_functions.reducedPlasmidNamesToCanonical(text_split)
-        self.write("Parsed input:<br>")
+        self.write("Parsed text box input:<br>")
         self.write(str(plasmidNames)+"<br>")
+        self.write("Loaded "+str(len(text_split))+" plasmid names successfully<br>")        
 
         os.chdir(tmp_dir_name)
         files = glob.glob("../../MoClo_plasmids/*.gb*")
-        self.write(str(len(files))+" plasmid files found preloaded on server.<br>")
+        files.append(fname) ##Include the uploaded file as well.
+        self.write(str(len(files))+" plasmid files found preloaded on server. (MoClo-YTK + your plasmid)<br>")
  
         plasmidSeqs,featuresToApply =  auto_golden_gate_functions.extractPlasmidSeqsAndFeatures(plasmidNames,files)
-        self.write("Based on provided input, loaded "+str(len(plasmidSeqs))+" plasmid files with "+str(len(featuresToApply))+" annotations.<br>")
+        self.write("Based on provided input names, loaded "+str(len(plasmidSeqs))+" plasmid files with "+str(len(featuresToApply))+" annotations.<br>")
         if len(plasmidNames) != len(plasmidSeqs):
             self.write("Error: Number of plasmids parsed is less than requested.<br>")
             self.write("This means the program couldn't find some file(s).<br>")

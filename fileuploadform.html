@@ -8,10 +8,19 @@
 <form enctype="multipart/form-data" action="/upload" method="post">
 Upload Genbank file of your Type 3 Part plasmid : <input type="file" name="filearg" />
 <br />
+<br>
 and
 <br />
-From your lab notebook / excel, copy paste the other 5 parts for the 6 part cassette assembly.
+<br>
+From your lab notebook / excel, copy paste the names of the parts  6 part cassette assembly, separated by newlines, or commas.
 <br />
+Example:'pYTK003,pYTK010,pJKW 2370,pYTK052,pYTK072,pYTK095'
+<br>
+There is also the capability for some limited pattern matching to the pYTK naming scheme:
+<br>
+Example:'(003),(010),pJKW 2370,(052),(072)(095)'
+<br>
+
 <TEXTAREA name="text_box" 
             rows="20" cols="80"
             tabindex="40">
